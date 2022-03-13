@@ -1,0 +1,27 @@
+{
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint"],
+  "extends": [
+    "prettier",
+    "airbnb-base",
+    "airbnb-typescript/base",
+    "plugin:@typescript-eslint/eslint-recommended",
+    "plugin:@typescript-eslint/recommended",
+    "eslint:recommended"
+  ],
+  "parserOptions": {
+    "project": "./tsconfig.json"
+  },
+  "rules": {
+    "@typescript-eslint/indent": 0,
+    "no-console": "off",
+    "no-underscore-dangle": "off",
+    "linebreak-style": "off",
+    "implicit-arrow-linebreak": "off",
+    "arrow-body-style": 0,
+    "object-curly-newline": 0,
+    "@typescript-eslint/no-explicit-any": 0,
+    "operator-linebreak": 0
+  }
+}
