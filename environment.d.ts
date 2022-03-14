@@ -4,6 +4,8 @@ declare global {
     interface ProcessEnv {
       DB_CNN_STRING: string;
       BOT_TOKEN: string;
+      CHANNEL_NAME: string;
+      ROL_CHALLENGER_NAME: string;
     }
   }
 }

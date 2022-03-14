@@ -3,19 +3,21 @@ import { Schema, model, Document, Model, Types } from 'mongoose';
 interface GameFunctions {
   setSecret(word: string): Promise<void>;
   addLetterAttempt(letter: string): Promise<boolean>;
-  gameOver(): Promise<void>;
 }
 
 export type Game = {
   messageID: string;
   chanelID: string;
+  secretChanelID: string;
   serverID: string;
   lifes: number;
   word: string;
   secretLetters: string[];
   challenger: string;
+  challengerID: string;
   guesses: string[];
   queueLetters: string[];
+  winnerID: string;
   state: 'In game' | 'Waitting Word' | 'Finish';
 };
 
@@ -31,17 +33,22 @@ const ServerSchema = new Schema<Game, IGameModel, GameFunctions>(
   {
     chanelID: { type: String, required: true },
     serverID: { type: String, required: true },
-    lifes: { type: Number, default: 8 },
+    secretChanelID: String,
+    lifes: Number,
     word: String,
     messageID: { type: String, required: true },
     challenger: String,
+    challengerID: String,
     guesses: [String],
     queueLetters: [String],
     state: { type: String, enum: ['In game', 'Waitting Word', 'Finish'] },
     secretLetters: [String],
+    winnerID: String,
   },
   { versionKey: false },
 );
+
+ServerSchema.index({ chanelID: 1, serverID: 1 }, { unique: true });
 
 ServerSchema.methods.setSecret = async function setSecret(
   this: GameInstance,
@@ -76,16 +83,18 @@ ServerSchema.methods.addLetterAttempt = async function addLetterAttempt(
       decrementar = false;
     }
   }
+  if (decrementar) {
+    this.$set('lifes', this.lifes - 1, {});
+    if (this.lifes === 0) {
+      this.state = 'Finish';
+      this.winnerID = this.challengerID;
+    }
+  }
+
   await this.save();
   return decrementar;
 };
 
-ServerSchema.methods.gameOver = async function gameOver(this: GameInstance) {
-  console.log('schema game over');
-
-  this.state = 'Finish';
-  await this.save();
-};
 const GameModel = model<Game, IGameModel>('Game', ServerSchema);
 
 export default GameModel;

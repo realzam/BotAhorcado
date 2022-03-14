@@ -1,13 +1,15 @@
 import 'dotenv/config';
-import { Client, TextChannel } from 'discord.js';
+import { Client, Intents, TextChannel } from 'discord.js';
 import messageCreate from './controllers/messgeCreate';
 import dbConnection from './db/config';
 import GameModel, { GameInstance } from './db/models/Game';
 import sendStateMessge from './controllers/sendStateMessage';
+import limparRol from './utils/utils';
 
 const main = async () => {
+  const allIntents = new Intents(32767);
   const client = new Client({
-    intents: 32767,
+    intents: allIntents,
   });
 
   client.on('ready', () => {
@@ -20,16 +22,14 @@ const main = async () => {
 
   const changeStream = GameModel.watch([], { fullDocument: 'updateLookup' });
   changeStream.on('change', async (change) => {
-    if (change.operationType === 'update') {
-      const doc = change.fullDocument as GameInstance;
-      if (doc.lifes === 0 && doc.state === 'In game') {
-        console.log('game over', doc._id);
-        await (await GameModel.findById(doc._id))?.gameOver();
-        return;
-      }
+    const doc = change.fullDocument as GameInstance;
+    if (change.operationType === 'update' && doc.state !== 'Waitting Word') {
       const channel = client.channels.cache.get(doc.chanelID) as TextChannel;
       const botmsg = await await channel.messages.fetch(doc.messageID);
       sendStateMessge(botmsg, doc);
+      if (doc.state === 'Finish') {
+        limparRol(channel.guild);
+      }
     }
   });
 };

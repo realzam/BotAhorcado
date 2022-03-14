@@ -10,24 +10,30 @@ const commandMessage = (message: Message) => {
   const args = commandBody.split(' ');
   const command = args.shift()?.toLowerCase();
   if (!command) return;
-  if (!commands.has(command)) return;
+  if (!commands.has(command)) {
+    message.reply(
+      '¿Me hablaste? :face_with_raised_eyebrow:  :confused:, No entiendo el comando :neutral_face: ',
+    );
+    return;
+  }
   commands.get(command)?.execute(message);
 };
 
 const messageCreate = async (message: Message) => {
   if (message.author.bot) return;
-  if (message.content.startsWith(prefix)) {
+  const content = message.content.trim();
+  if (content.startsWith(prefix)) {
     commandMessage(message);
     return;
   }
   const game = await GameModel.findOne({ serverID: message.guildId });
   if (!game) return;
-  const txtMsg = message.content;
+  const txtMsg = message.content.trim();
   if (game.state === 'Waitting Word') {
     const channel = message.guild?.channels.cache.find(
       (c) => c.id === message.channelId,
     ) as TextChannel;
-    if (channel.name === 'secret') {
+    if (channel.name === process.env.CHANNEL_NAME) {
       await game.setSecret(txtMsg);
     }
     return;
@@ -37,14 +43,12 @@ const messageCreate = async (message: Message) => {
     game.state === 'In game' &&
     game.chanelID === message.channelId
   ) {
-    console.log('messageCreate try discover', txtMsg);
-    const decrementar = await game.addLetterAttempt(txtMsg.toUpperCase());
-    if (decrementar) {
-      await GameModel.findByIdAndUpdate(game.id, {
-        $inc: { lifes: -1 },
-      });
+    if (game.challengerID === message.author.id) {
+      message.reply(':shushing_face: shh, No des ideas :rolling_eyes: ');
+      return;
     }
-    await message.delete();
+    await game.addLetterAttempt(txtMsg.toUpperCase());
+    message.delete();
   }
 };
 
