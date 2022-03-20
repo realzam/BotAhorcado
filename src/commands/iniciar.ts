@@ -12,7 +12,7 @@ const execute = async (msg: Message) => {
     .replaceAll(/\s+/g, ' ')
     .trim();
   const args = commandBody.split(' ');
-  let modo = 3;
+  let modo = 1;
   let lifes = 7;
   if (args[0] === '2' || args[1] === '2') {
     modo = 3;
