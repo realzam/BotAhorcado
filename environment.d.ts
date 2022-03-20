@@ -6,6 +6,7 @@ declare global {
       BOT_TOKEN: string;
       CHANNEL_NAME: string;
       ROL_CHALLENGER_NAME: string;
+      APPLICATION_ID: string;
     }
   }
 }

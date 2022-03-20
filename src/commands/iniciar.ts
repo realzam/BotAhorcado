@@ -7,14 +7,31 @@ import GameModel, { Game } from '../db/models/Game';
 import limparRol from '../utils/utils';
 
 const execute = async (msg: Message) => {
+  const commandBody = msg.content
+    .slice('$iniciar'.length)
+    .replaceAll(/\s+/g, ' ')
+    .trim();
+  const args = commandBody.split(' ');
+  let modo = 3;
+  let lifes = 7;
+  if (args[0] === '2' || args[1] === '2') {
+    modo = 3;
+    lifes = 14;
+  }
   const role = msg.guild?.roles.cache.find(
     (r) => r.name === process.env.ROL_CHALLENGER_NAME,
   ) as Role;
   await limparRol(msg.guild as Guild);
   const user = msg.mentions.members?.first();
-  const chanel = msg.guild?.channels.cache.find(
+  const chanelSecret = msg.guild?.channels.cache.find(
     (c) => c.name === process.env.CHANNEL_NAME,
   ) as TextChannel;
+  if (chanelSecret.id === msg.channelId) {
+    msg.reply(
+      ':rage: :rage: No se pude iniciar una partida aqui, esta canal es solo para ingresar la palabra a jugar :face_with_symbols_over_mouth: ',
+    );
+    return;
+  }
   if (user) {
     if (user.user.bot) {
       msg.reply(':clown: :clown: Los robots no pueden jugar :laughing: ');
@@ -24,7 +41,7 @@ const execute = async (msg: Message) => {
     let msgEmbed = await messageEmbedWaittingWord(user.id);
     const { id } = await msg.channel.send({ embeds: [msgEmbed] });
     msgEmbed = await messageEmbedSecretChannel(user.id);
-    chanel.send({ embeds: [msgEmbed] });
+    chanelSecret.send({ embeds: [msgEmbed] });
     const serverID = msg.guildId as string;
     const chanelID = msg.channelId;
 
@@ -35,13 +52,14 @@ const execute = async (msg: Message) => {
       challenger: user.displayName,
       challengerID: user.id,
       guesses: [],
-      lifes: 7,
-      queueLetters: [],
+      lifes,
       state: 'Waitting Word',
       word: '',
       secretLetters: [],
-      secretChanelID: chanel.id,
+      secretChanelID: chanelSecret.id,
       winnerID: '',
+      messageOffset: 15,
+      modo,
     };
     const options = { upsert: true, new: true, setDefaultsOnInsert: true };
     await GameModel.findOneAndUpdate({ serverID, chanelID }, update, options);

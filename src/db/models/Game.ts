@@ -2,7 +2,7 @@ import { Schema, model, Document, Model, Types } from 'mongoose';
 
 interface GameFunctions {
   setSecret(word: string): Promise<void>;
-  addLetterAttempt(letter: string): Promise<boolean>;
+  addLetterAttempt(letter: string, guesser: string): Promise<boolean>;
 }
 
 export type Game = {
@@ -16,9 +16,10 @@ export type Game = {
   challenger: string;
   challengerID: string;
   guesses: string[];
-  queueLetters: string[];
   winnerID: string;
-  state: 'In game' | 'Waitting Word' | 'Finish';
+  state: 'In game' | 'Waitting Word' | 'Finish' | 'Stoped';
+  messageOffset: number;
+  modo: number;
 };
 
 export type GameInstance = Document<unknown, any, Game> &
@@ -40,10 +41,14 @@ const ServerSchema = new Schema<Game, IGameModel, GameFunctions>(
     challenger: String,
     challengerID: String,
     guesses: [String],
-    queueLetters: [String],
-    state: { type: String, enum: ['In game', 'Waitting Word', 'Finish'] },
+    state: {
+      type: String,
+      enum: ['In game', 'Waitting Word', 'Finish', 'Stoped'],
+    },
     secretLetters: [String],
     winnerID: String,
+    messageOffset: Number,
+    modo: Number,
   },
   { versionKey: false },
 );
@@ -67,6 +72,7 @@ ServerSchema.methods.setSecret = async function setSecret(
 ServerSchema.methods.addLetterAttempt = async function addLetterAttempt(
   this: GameInstance,
   letter: string,
+  guesser: string,
 ) {
   if (
     this.guesses.includes(letter) ||
@@ -82,6 +88,10 @@ ServerSchema.methods.addLetterAttempt = async function addLetterAttempt(
       this.secretLetters[i] = letter;
       decrementar = false;
     }
+  }
+  if (this.word === this.secretLetters.join('')) {
+    this.state = 'Finish';
+    this.winnerID = guesser;
   }
   if (decrementar) {
     this.$set('lifes', this.lifes - 1, {});

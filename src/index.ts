@@ -23,9 +23,13 @@ const main = async () => {
   const changeStream = GameModel.watch([], { fullDocument: 'updateLookup' });
   changeStream.on('change', async (change) => {
     const doc = change.fullDocument as GameInstance;
-    if (change.operationType === 'update' && doc.state !== 'Waitting Word') {
+    if (
+      change.operationType === 'update' &&
+      doc.state !== 'Waitting Word' &&
+      doc.state !== 'Stoped'
+    ) {
       const channel = client.channels.cache.get(doc.chanelID) as TextChannel;
-      const botmsg = await await channel.messages.fetch(doc.messageID);
+      const botmsg = await channel.messages.fetch(doc.messageID);
       sendStateMessge(botmsg, doc);
       if (doc.state === 'Finish') {
         limparRol(channel.guild);

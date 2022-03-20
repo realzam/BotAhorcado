@@ -1,5 +1,5 @@
 import { Message, MessageEmbed } from 'discord.js';
-import { GameInstance } from '../db/models/Game';
+import GameModel, { GameInstance } from '../db/models/Game';
 
 const wordEmoji = (word: string[]): string => {
   const emojis: string[] = [];
@@ -7,7 +7,7 @@ const wordEmoji = (word: string[]): string => {
     if (word[i] === '$') {
       emojis.push(':blue_square:');
     } else if (word[i] === ' ') {
-      emojis.push(':black_large_square:');
+      emojis.push(':white_large_square:');
     } else {
       emojis.push(`:regional_indicator_${word[i].toLowerCase()}:`);
     }
@@ -16,20 +16,21 @@ const wordEmoji = (word: string[]): string => {
 };
 
 const messageEmbedInGame = (doc: GameInstance) => {
-  const img = `http://129.153.74.97/${doc.lifes}.webp`;
+  const img = `http://129.153.74.97/${doc.modo}/${doc.lifes}.webp`;
   let emmbed = new MessageEmbed()
     .addField('Palabra de', doc.challenger, true)
-    .addField('Vidas', `${doc.lifes}`, true);
+    .addField('Vidas', `${doc.lifes}`, true)
+    .setThumbnail(img);
   if (doc.guesses.length > 0) {
     emmbed = emmbed.addField('Intentos', `\`${doc.guesses.join(', ')}\``);
   }
-  emmbed = emmbed
-    .addField('Palabra:', wordEmoji(doc.secretLetters))
-    .setThumbnail(img);
+  emmbed = emmbed.addField('Palabra:', wordEmoji(doc.secretLetters));
+
   return emmbed;
 };
 
 const messageEmbedWinAnyOne = (doc: GameInstance) => {
+  const img = 'http://129.153.74.97/win.webp';
   const emmbed = new MessageEmbed()
     .setTitle('Game Over')
     .addField('Palabra de', doc.challenger, true)
@@ -37,11 +38,13 @@ const messageEmbedWinAnyOne = (doc: GameInstance) => {
     .setDescription(
       `Felicidades :partying_face: :partying_face:<@${doc.winnerID}> eres muy brillante :sunglasses:, has adividado la palabra`,
     )
-    .addField('La palabra era:', `${doc.word}`);
+    .addField('La palabra era:', `${doc.word}`)
+    .setImage(img);
   return emmbed;
 };
 
 const messageEmbedWinChallenger = (doc: GameInstance) => {
+  const img = `http://129.153.74.97/${doc.modo}/${doc.lifes}.webp`;
   const emmbed = new MessageEmbed()
     .setTitle('Game Over')
     .addField('Palabra de', doc.challenger, true)
@@ -49,6 +52,7 @@ const messageEmbedWinChallenger = (doc: GameInstance) => {
     .setDescription(
       `Felicidades :partying_face: :partying_face:<@${doc.winnerID}> Nadie pudo adivinar tu palabra`,
     )
+    .setImage(img)
     .addField('La palabra era:', `${doc.word}`);
   return emmbed;
 };
@@ -69,6 +73,7 @@ export const messageEmbedSecretChannel = (challenger: string) => {
 
 export const messageEmbedHelp = () => {
   const emmbed = new MessageEmbed()
+    .setTitle('Ayuda')
     .addField(
       'Como Jugar',
       'El ahorcado es muy sencillo de jugar, para ganar tienes que adivinar la palabra que se muestra introduciendo letras en el chat para adivinar la palabra completa o ingresando el comando $adivinar <palabra> para adivinar la palabra completa',
@@ -79,7 +84,7 @@ export const messageEmbedHelp = () => {
     )
     .addField(
       'Paso 2',
-      'Ingresar el comando `$iniciar @usuaro` el @usuario sera el `ahorcador` y tendra que ir al canal ahorcado para enviar la palabra a jugar',
+      'Ingresar el comando `$iniciar @usuaro <modo>` el @usuario sera el `ahorcador` y tendra que ir al canal ahorcado para enviar la palabra a jugar. El modo es opcional, si no se escribe el juego sera con 7 vidas, si se escibe 2 ( `$iniciar @usuario 2` ) el juego contará con 14 vidas',
     )
     .addField(
       'Paso 3',
@@ -87,13 +92,25 @@ export const messageEmbedHelp = () => {
     )
     .addField(
       'Considaraciones',
-      'Al inicio del juego se tiene 7 vidas, Si la letra no se encuentra en la palabra se restara una vida,',
+      ' - Al inicio del juego se tiene 7 vidas, Si la letra no se encuentra en la palabra se restara una vida\n - El cuadro azul ( :blue_square: ) representa una letra que aun no a sido descubierta\n - El cuadro blanco ( :white_large_square: ) representa un espacio entre palabras\n - Puedes detener el juego con el comando `$detener`',
     );
   return emmbed;
 };
 
+const moveMessageToBottom = async (
+  message: Message,
+  doc: GameInstance,
+  msgEmbed: MessageEmbed,
+) => {
+  const newMsg = await message.channel.send({ embeds: [msgEmbed] });
+  await GameModel.findByIdAndUpdate(doc._id, {
+    $set: { messageOffset: 15, messageID: newMsg.id },
+  });
+  message.delete();
+};
+
 const sendStateMessge = (message: Message, doc: GameInstance) => {
-  let msgEmbed;
+  let msgEmbed: MessageEmbed;
   if (doc.state === 'Finish' && doc.lifes === 0) {
     msgEmbed = messageEmbedWinChallenger(doc);
   } else if (doc.state === 'Finish' && doc.lifes > 0) {
@@ -101,7 +118,11 @@ const sendStateMessge = (message: Message, doc: GameInstance) => {
   } else {
     msgEmbed = messageEmbedInGame(doc);
   }
-  message.edit({ embeds: [msgEmbed] });
+  if (doc.messageOffset <= 0) {
+    moveMessageToBottom(message, doc, msgEmbed);
+  } else {
+    message.edit({ embeds: [msgEmbed] });
+  }
 };
 
 export default sendStateMessge;
