@@ -38,9 +38,9 @@ const execute = async (msg: Message) => {
       return;
     }
     user.roles.add(role);
-    let msgEmbed = await messageEmbedWaittingWord(user.id);
+    let msgEmbed = messageEmbedWaittingWord(user.id);
     const { id } = await msg.channel.send({ embeds: [msgEmbed] });
-    msgEmbed = await messageEmbedSecretChannel(user.id);
+    msgEmbed = messageEmbedSecretChannel(user.id);
     chanelSecret.send({ embeds: [msgEmbed] });
     const serverID = msg.guildId as string;
     const chanelID = msg.channelId;

@@ -66,6 +66,7 @@ ServerSchema.methods.setSecret = async function setSecret(
     .toUpperCase();
   this.secretLetters = this.word.replaceAll(/[A-Z]/g, '$').split('');
   this.state = 'In game';
+  this.messageOffset = -1;
   await this.save();
 };
 

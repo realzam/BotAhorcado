@@ -27,14 +27,17 @@ const messageCreate = async (message: Message) => {
   }
   const game = await GameModel.findOne({ serverID: message.guildId });
   if (!game) return;
-  if (game.state === 'Waitting Word' && !message.author.bot) {
+  if (
+    game.state === 'Waitting Word' &&
+    message.author.id === game.challengerID
+  ) {
     const channel = message.guild?.channels.cache.find(
       (c) => c.id === message.channelId,
     ) as TextChannel;
     if (channel.name === process.env.CHANNEL_NAME) {
       await game.setSecret(content);
+      return;
     }
-    return;
   }
   if (
     content.length === 1 &&
@@ -50,7 +53,10 @@ const messageCreate = async (message: Message) => {
     message.delete();
     return;
   }
-  if (game.state === 'In game' && game.chanelID === message.channelId) {
+  if (
+    (game.state === 'In game' || game.state === 'Waitting Word') &&
+    game.chanelID === message.channelId
+  ) {
     let breakLines = [...content.matchAll(/[^\r\n]+/g)].length;
     if (content.length !== 0) {
       breakLines = Math.max(2, breakLines);

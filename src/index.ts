@@ -23,14 +23,15 @@ const main = async () => {
   const changeStream = GameModel.watch([], { fullDocument: 'updateLookup' });
   changeStream.on('change', async (change) => {
     const doc = change.fullDocument as GameInstance;
-    if (
-      change.operationType === 'update' &&
-      doc.state !== 'Waitting Word' &&
-      doc.state !== 'Stoped'
-    ) {
+    if (change.operationType === 'update' && doc.state !== 'Stoped') {
       const channel = client.channels.cache.get(doc.chanelID) as TextChannel;
-      const botmsg = await channel.messages.fetch(doc.messageID);
-      sendStateMessge(botmsg, doc);
+      let botmsg;
+      try {
+        botmsg = await channel.messages.fetch(doc.messageID);
+      } catch (error) {
+        console.log('No existe el mensaje, generando otro');
+      }
+      sendStateMessge(botmsg, doc, channel);
       if (doc.state === 'Finish') {
         limparRol(channel.guild);
       }

@@ -1,4 +1,4 @@
-import { Message, MessageEmbed } from 'discord.js';
+import { Message, MessageEmbed, TextChannel } from 'discord.js';
 import GameModel, { GameInstance } from '../db/models/Game';
 
 const wordEmoji = (word: string[]): string => {
@@ -109,18 +109,31 @@ const moveMessageToBottom = async (
   message.delete();
 };
 
-const sendStateMessge = (message: Message, doc: GameInstance) => {
+const sendStateMessge = async (
+  message: Message | undefined,
+  doc: GameInstance,
+  channel: TextChannel,
+) => {
   let msgEmbed: MessageEmbed;
-  if (doc.state === 'Finish' && doc.lifes === 0) {
+  if (doc.state === 'Waitting Word') {
+    msgEmbed = messageEmbedWaittingWord(doc.challengerID);
+  } else if (doc.state === 'Finish' && doc.lifes === 0) {
     msgEmbed = messageEmbedWinChallenger(doc);
   } else if (doc.state === 'Finish' && doc.lifes > 0) {
     msgEmbed = messageEmbedWinAnyOne(doc);
   } else {
     msgEmbed = messageEmbedInGame(doc);
   }
+  if (!message) {
+    const newMsg = await channel.send({ embeds: [msgEmbed] });
+    await GameModel.findByIdAndUpdate(doc._id, {
+      $set: { messageOffset: 15, messageID: newMsg.id },
+    });
+    return;
+  }
   if (doc.messageOffset <= 0) {
     moveMessageToBottom(message, doc, msgEmbed);
-  } else {
+  } else if (doc.state !== 'Waitting Word') {
     message.edit({ embeds: [msgEmbed] });
   }
 };
