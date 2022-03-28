@@ -10,27 +10,36 @@ const execute = async (msg: Message) => {
   let guess = msg.content.trim().slice(`$${name}`.length);
   guess = guess
     .replaceAll(/\s+/g, ' ')
-    .replaceAll(/[^a-zA-Z ]/g, '')
+    .replaceAll(/[^a-zA-Z0-9 ]/g, '')
     .trim()
     .toUpperCase();
-  if (game && game.state === 'In game' && game.word === guess) {
-    await GameModel.findOneAndUpdate(
-      { serverID, chanelID },
-      { $set: { state: 'Finish', winnerID: msg.author.id } },
-    );
-    return;
-  }
-  if (game && game.state === 'In game' && game.word !== guess) {
-    msg.reply(
-      ':x: Nop, esa no es la palabra sigue intentando no te rindas :punch: ',
-    );
-    return;
-  }
+  if (game && game.state === 'In game') {
+    if (game.challengerID === msg.author.id) {
+      msg.reply(
+        ':clown: :clown:  No puedes adivinar tu propia palabra :thinking:',
+      );
+      return;
+    }
+    if (game.word === guess) {
+      game.$set('state', 'Finish');
+      game.$set('winnerID', msg.author.id);
+      game.$set('messageOffset', -1);
+      game.addLeaderBoard();
+      await game.save();
+      return;
+    }
+    if (game.word !== guess) {
+      msg.reply(
+        ':x: Nop, esa no es la palabra sigue intentando no te rindas :punch: ',
+      );
+      return;
+    }
 
-  if (game && game.state === 'In game' && guess === '') {
-    msg.reply(
-      ':rage: :rage: :rage: Tienes que poner la palabra que crees que esta en el ahorado asi:`$adivinar kimi no na wa`',
-    );
+    if (guess === '') {
+      msg.reply(
+        ':rage: :rage: :rage: Tienes que poner la palabra que crees que esta en el ahorado asi:`$adivinar kimi no na wa`',
+      );
+    }
   }
 };
 

@@ -24,7 +24,7 @@ const main = async () => {
   changeStream.on('change', async (change) => {
     const doc = change.fullDocument as GameInstance;
     if (change.operationType === 'update' && doc.state !== 'Stoped') {
-      const channel = client.channels.cache.get(doc.chanelID) as TextChannel;
+      const channel = client.channels.cache.get(doc.channelID) as TextChannel;
       let botmsg;
       try {
         botmsg = await channel.messages.fetch(doc.messageID);

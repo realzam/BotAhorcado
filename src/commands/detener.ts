@@ -9,7 +9,11 @@ const execute = async (msg: Message) => {
   });
   if (game) {
     const botmsg = await msg.channel.messages.fetch(game.messageID);
-    await botmsg.delete();
+    try {
+      await botmsg.delete();
+    } catch (error) {
+      console.log('no se pudo eliminar el mensaje');
+    }
     await limparRol(msg.guild as Guild);
     await GameModel.findOneAndUpdate(
       {

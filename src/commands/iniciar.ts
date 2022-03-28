@@ -3,7 +3,7 @@ import {
   messageEmbedSecretChannel,
   messageEmbedWaittingWord,
 } from '../controllers/sendStateMessage';
-import GameModel, { Game } from '../db/models/Game';
+import GameModel, { GameInputs } from '../db/models/Game';
 import limparRol from '../utils/utils';
 
 const execute = async (msg: Message) => {
@@ -12,10 +12,10 @@ const execute = async (msg: Message) => {
     .replaceAll(/\s+/g, ' ')
     .trim();
   const args = commandBody.split(' ');
-  let modo = 1;
+  let mode = 1;
   let lifes = 7;
   if (args[0] === '2' || args[1] === '2') {
-    modo = 3;
+    mode = 3;
     lifes = 14;
   }
   const role = msg.guild?.roles.cache.find(
@@ -43,12 +43,11 @@ const execute = async (msg: Message) => {
     msgEmbed = messageEmbedSecretChannel(user.id);
     chanelSecret.send({ embeds: [msgEmbed] });
     const serverID = msg.guildId as string;
-    const chanelID = msg.channelId;
-
-    const update: Game = {
+    const channelID = msg.channelId;
+    const update: GameInputs = {
       messageID: id,
       serverID,
-      chanelID,
+      channelID,
       challenger: user.displayName,
       challengerID: user.id,
       guesses: [],
@@ -59,10 +58,11 @@ const execute = async (msg: Message) => {
       secretChanelID: chanelSecret.id,
       winnerID: '',
       messageOffset: 15,
-      modo,
+      includeNumbers: false,
+      mode,
     };
     const options = { upsert: true, new: true, setDefaultsOnInsert: true };
-    await GameModel.findOneAndUpdate({ serverID, chanelID }, update, options);
+    await GameModel.findOneAndUpdate({ serverID, channelID }, update, options);
   } else {
     msg.reply(
       `:rage: :rage: Es necesario que menciones a una persona para comenzar asi: \`$iniciar @${msg.author.username}\`, no roles ni bots ni nada raro :face_with_symbols_over_mouth: `,

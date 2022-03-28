@@ -1,13 +1,21 @@
+import moment from 'moment';
 import { Schema, model, Document, Model, Types } from 'mongoose';
+
+export type Player = {
+  idDiscord: string;
+  wins: number;
+};
 
 interface GameFunctions {
   setSecret(word: string): Promise<void>;
-  addLetterAttempt(letter: string, guesser: string): Promise<boolean>;
+  addLetterAttempt(letter: string, guesser: string): Promise<void>;
+  addLeaderBoard(): void;
+  clearLeaderBoard(): void;
 }
 
-export type Game = {
+export type GameInputs = {
   messageID: string;
-  chanelID: string;
+  channelID: string;
   secretChanelID: string;
   serverID: string;
   lifes: number;
@@ -19,7 +27,13 @@ export type Game = {
   winnerID: string;
   state: 'In game' | 'Waitting Word' | 'Finish' | 'Stoped';
   messageOffset: number;
-  modo: number;
+  mode: number;
+  includeNumbers: boolean;
+};
+
+export type Game = GameInputs & {
+  leaderBoard: Player[];
+  leaderBoardExpiresOn: number;
 };
 
 export type GameInstance = Document<unknown, any, Game> &
@@ -32,7 +46,7 @@ type IGameModel = Model<Game, {}, GameFunctions>;
 
 const ServerSchema = new Schema<Game, IGameModel, GameFunctions>(
   {
-    chanelID: { type: String, required: true },
+    channelID: { type: String, required: true },
     serverID: { type: String, required: true },
     secretChanelID: String,
     lifes: Number,
@@ -48,7 +62,18 @@ const ServerSchema = new Schema<Game, IGameModel, GameFunctions>(
     secretLetters: [String],
     winnerID: String,
     messageOffset: Number,
-    modo: Number,
+    mode: Number,
+    includeNumbers: Boolean,
+    leaderBoardExpiresOn: { type: Number, default: 0 },
+    leaderBoard: {
+      type: [
+        {
+          idDiscord: String,
+          wins: Number,
+        },
+      ],
+      default: [],
+    },
   },
   { versionKey: false },
 );
@@ -59,12 +84,15 @@ ServerSchema.methods.setSecret = async function setSecret(
   this: GameInstance,
   word: string,
 ) {
+  if (word.match(/\d+/g)) {
+    this.includeNumbers = true;
+  }
   this.word = word
     .replaceAll(/\s+/g, ' ')
-    .replaceAll(/[^a-zA-Z ]/g, '')
+    .replaceAll(/[^a-zA-Z0-9 ]/g, '')
     .trim()
     .toUpperCase();
-  this.secretLetters = this.word.replaceAll(/[A-Z]/g, '$').split('');
+  this.secretLetters = this.word.replaceAll(/[A-Z0-9]/g, '$').split('');
   this.state = 'In game';
   this.messageOffset = -1;
   await this.save();
@@ -80,7 +108,7 @@ ServerSchema.methods.addLetterAttempt = async function addLetterAttempt(
     this.state === 'Finish' ||
     this.lifes < 1
   ) {
-    return false;
+    return;
   }
   this.guesses.push(letter);
   let decrementar = true;
@@ -90,22 +118,56 @@ ServerSchema.methods.addLetterAttempt = async function addLetterAttempt(
       decrementar = false;
     }
   }
-  if (this.word === this.secretLetters.join('')) {
+  if (this.word === this.secretLetters.join('') && this.winnerID === '') {
     this.state = 'Finish';
     this.winnerID = guesser;
+    this.messageOffset = -1;
+    this.addLeaderBoard();
   }
   if (decrementar) {
     this.$set('lifes', this.lifes - 1, {});
     if (this.lifes === 0) {
       this.state = 'Finish';
       this.winnerID = this.challengerID;
+      this.messageOffset = -1;
+      this.addLeaderBoard();
     }
   }
 
   await this.save();
-  return decrementar;
 };
 
+ServerSchema.methods.addLeaderBoard = function addLeaderBoard(
+  this: GameInstance,
+) {
+  this.clearLeaderBoard();
+  if (this.winnerID !== '') {
+    const player = this.leaderBoard.find((p) => p.idDiscord === this.winnerID);
+    const playerIndex = this.leaderBoard.findIndex(
+      (p) => p.idDiscord === this.winnerID,
+    );
+    if (player) {
+      this.$set(`leaderBoard.${playerIndex}.wins`, player.wins + 1);
+    } else {
+      this.leaderBoard.push({
+        wins: 1,
+        idDiscord: this.winnerID,
+      });
+    }
+  }
+};
+
+ServerSchema.methods.clearLeaderBoard = function clearLeaderBoard(
+  this: GameInstance,
+) {
+  const expires = moment.unix(this.leaderBoardExpiresOn).unix();
+  const now = moment().unix();
+  if (expires < now) {
+    console.log('clear leaderBoard');
+    this.leaderBoard = [];
+    this.leaderBoardExpiresOn = moment().add(6, 'hours').unix();
+  }
+};
 const GameModel = model<Game, IGameModel>('Game', ServerSchema);
 
 export default GameModel;

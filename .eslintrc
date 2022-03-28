@@ -14,6 +14,8 @@
     "project": "./tsconfig.json"
   },
   "rules": {
+    "eslint-disable-next-line": 0,
+    "no-restricted-syntax": 0,
     "@typescript-eslint/indent": 0,
     "no-console": "off",
     "no-underscore-dangle": "off",

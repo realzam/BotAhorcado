@@ -1,6 +1,10 @@
 import { Message, TextChannel } from 'discord.js';
-import botCommands from '../commands/index';
+import botCommands, { comandos } from '../commands/index';
 import GameModel from '../db/models/Game';
+import {
+  messageEmbedSecretTooLong,
+  messageEmbedSecretTooShort,
+} from './sendStateMessage';
 
 const prefix = '$';
 const commands = botCommands;
@@ -11,8 +15,9 @@ const commandMessage = (message: Message) => {
   const command = args.shift()?.toLowerCase();
   if (!command) return;
   if (!commands.has(command)) {
+    const comandosInfo = comandos.map((c) => `\`$${c}\``).join(', ');
     message.reply(
-      '¿Me hablaste? :face_with_raised_eyebrow:  :confused:, No entiendo el comando :neutral_face: \n comandos disponibles: `$adivinar`, `$crear`, `$detener`, `$help`, `$iniciar`',
+      `¿Me hablaste? :face_with_raised_eyebrow:  :confused:, No entiendo el comando :neutral_face: \n comandos disponibles: ${comandosInfo}`,
     );
     return;
   }
@@ -35,6 +40,19 @@ const messageCreate = async (message: Message) => {
       (c) => c.id === message.channelId,
     ) as TextChannel;
     if (channel.name === process.env.CHANNEL_NAME) {
+      const word = content
+        .replaceAll(/\s+/g, ' ')
+        .replaceAll(/[^a-zA-Z0-9 ]/g, '')
+        .trim()
+        .toUpperCase();
+      if (word.length < 3) {
+        message.channel.send({ embeds: [messageEmbedSecretTooShort()] });
+        return;
+      }
+      if (word.length > 30) {
+        message.channel.send({ embeds: [messageEmbedSecretTooLong()] });
+        return;
+      }
       await game.setSecret(content);
       return;
     }
@@ -42,20 +60,37 @@ const messageCreate = async (message: Message) => {
   if (
     content.length === 1 &&
     game.state === 'In game' &&
-    game.chanelID === message.channelId &&
+    game.channelID === message.channelId &&
     !message.author.bot
   ) {
     if (game.challengerID === message.author.id) {
       message.reply(':shushing_face: shh, No des ideas :rolling_eyes: ');
       return;
     }
-    await game.addLetterAttempt(content.toUpperCase(), message.author.id);
-    message.delete();
+    const letter = content.replaceAll(/[^a-zA-Z0-9 ]/g, '').toUpperCase();
+    if (letter === '') {
+      await GameModel.findByIdAndUpdate(game.id, {
+        $inc: { messageOffset: -3 },
+      });
+      return;
+    }
+    if (letter.match(/\d/) && !game.includeNumbers) {
+      await GameModel.findByIdAndUpdate(game.id, {
+        $inc: { messageOffset: -3 },
+      });
+      return;
+    }
+    await game.addLetterAttempt(letter, message.author.id);
+    try {
+      await message.delete();
+    } catch (error) {
+      console.log('No se enconrtro el mensaje a eliminar');
+    }
     return;
   }
   if (
     (game.state === 'In game' || game.state === 'Waitting Word') &&
-    game.chanelID === message.channelId
+    game.channelID === message.channelId
   ) {
     let breakLines = [...content.matchAll(/[^\r\n]+/g)].length;
     if (content.length !== 0) {
