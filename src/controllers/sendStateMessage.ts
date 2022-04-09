@@ -113,7 +113,7 @@ export const messageEmbedSecretTooLong = () => {
 
 export const messageEmbedSecretTooShort = () => {
   const emmbed = new MessageEmbed().setDescription(
-    ':x: La palabra debe al menos 3 carácteres',
+    ':x: La palabra debe tener al menos 3 carácteres',
   );
   return emmbed;
 };
@@ -157,20 +157,7 @@ export const messageEmbedLeaderBoard = (doc: GameInstance) => {
   for (let i = 0; i < players.length; i += 1) {
     const player = players[i];
     const listPlayers = mapPlayers.get(player.wins);
-    let playerTxt = '';
-
-    if (i === 0) {
-      playerTxt = ':crown: Primer lugar : ';
-    }
-    if (i === 1) {
-      playerTxt = ':sunglasses: Segundo lugar : ';
-    }
-
-    if (i === 2) {
-      playerTxt = ':muscle: Tercer lugar : ';
-    }
-
-    playerTxt += `<@${player.idDiscord}>`;
+    const playerTxt = `<@${player.idDiscord}>`;
 
     if (!listPlayers) {
       mapPlayers.set(player.wins, [playerTxt]);
@@ -179,13 +166,24 @@ export const messageEmbedLeaderBoard = (doc: GameInstance) => {
     }
   }
 
+  let i = 0;
   for (const puntos of mapPlayers.keys()) {
     const listPlayers = mapPlayers.get(puntos);
+    let place = '';
+    if (i === 0) {
+      place = ':crown: Primer lugar : ';
+    } else if (i === 1) {
+      place = ':sunglasses: Segundo lugar : ';
+    } else if (i === 2) {
+      place = ':muscle: Tercer lugar : ';
+    }
+
     if (listPlayers) {
       const playersTxt = listPlayers.join(', ').replace(/,(?=[^,]*$)/, ' y');
       const puntosTxt = puntos > 1 ? 'puntos' : 'punto';
-      description += `${playersTxt} ${puntos} ${puntosTxt} \n`;
+      description += `${place} ${playersTxt} ${puntos} ${puntosTxt} \n`;
     }
+    i += 1;
   }
   emmbed = emmbed.setDescription(description);
   return emmbed;
